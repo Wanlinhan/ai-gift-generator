@@ -1,65 +1,124 @@
-AI 图片礼物生成器网站需求与实现
+AI 图片礼物生成器需求与实现说明
 
-一、目标
+一、项目定位
 
-本项目要做成一个别人可以拉到本地运行的 AI 图片礼物生成网站。使用者不需要配置复杂开发环境，只需要安装 Docker，复制环境变量示例文件，填入自己的火山引擎 Ark API Key，就可以在本地访问网站。
+本项目是一个可本地部署的 AI 图片礼物生成器。使用者输入礼物主题提示词后，网站通过后端接口调用火山引擎 Ark Seedream 5.0 图片生成模型，生成一张 1:1 风格的礼物图片，并在页面中展示结果。
 
-最终运行方式：
+项目重点不是公开 SaaS 平台，而是“别人可以 clone 项目后在自己的电脑本地运行”。使用者需要使用自己的火山引擎 Ark API Key。
 
-1. git clone 项目仓库
-2. cd 项目目录
-3. cp .env.example .env
-4. 在 .env 中填写自己的 ARK_API_KEY
-5. docker compose up --build
-6. 打开 http://localhost:3000
+二、已完成功能
 
-二、产品范围
+1. 前端页面
 
-第一版实现“文本生成图片礼物”工作流：
+- 首页提供提示词输入框。
+- 页面保留橙色品牌色、浅灰背景、白色圆角卡片和双栏布局。
+- 左侧是生成参数和统计信息。
+- 右侧是状态卡片和图片预览区域。
+- 默认提示词为黑暗主题、金色点缀、游戏道具、透明质感、二次元风格、1:1 构图。
 
-- 用户输入礼物主题提示词
-- 点击开始生成
-- 页面显示任务状态
-- 后端调用火山引擎 Ark Seedream 5.0 图片生成接口
-- 生成成功后在页面中预览图片
-- 用户可以打开结果链接保存图片
+2. 图片生成
 
-第一版暂不做登录、支付、多人协作、作品库、数据库和云端文件存储。后续如果需要公开给更多人使用，再增加账号系统、限流、任务历史和对象存储。
+- 用户点击“开始生成”后，前端请求本项目后端接口 /api/generate。
+- 后端读取环境变量 ARK_API_KEY。
+- 后端调用火山引擎 Ark 图片生成接口 /api/v3/images/generations。
+- 默认模型为 doubao-seedream-5-0-260128。
+- 默认图片尺寸为 2048x2048。
+- 默认不添加水印。
+- 生成成功后返回图片 URL。
 
-三、UI 风格
+3. 状态展示
 
-UI 参考现有 HTML 截图：
+当前状态包括：
 
-- 页面整体为浅灰背景
-- 主视觉使用橙色品牌色
-- 顶部居中展示图片图标和标题
-- 主区域为左右两栏
-- 左侧是生成参数卡片和任务统计
-- 右侧是处理状态卡片和图片预览卡片
-- 主按钮为大号橙色按钮
-- 图片预览区域为深色背景
-- 状态包括 READY、GENERATING、SUCCESS、FAIL
+- READY：页面初始状态
+- GENERATING：图片正在生成
+- SUCCESS：图片生成成功
+- FAIL：图片生成失败
 
-四、技术实现
+4. 结果展示
 
-采用 Next.js 项目结构：
+- 生成成功后在右侧预览区域展示图片。
+- 用户可以点击“打开图片”在新标签页打开生成结果。
 
-- src/app/page.tsx：前端页面
+5. 本地部署
+
+项目支持两种运行方式：
+
+- Docker 运行：适合给别人使用，只需要 Docker Desktop 和自己的 API Key。
+- Node.js 开发运行：适合开发调试。
+
+三、暂不包含的功能
+
+当前版本不包含：
+
+- 登录系统
+- 支付系统
+- 生成历史
+- 数据库
+- 云端对象存储
+- 多用户额度管理
+- 公开接口鉴权
+- 视频生成
+- 异步任务轮询
+
+这些功能可以作为后续版本扩展。
+
+四、技术方案
+
+技术栈：
+
+- Next.js 15
+- React 19
+- TypeScript
+- lucide-react
+- Docker
+- Docker Compose
+- 火山引擎 Ark Seedream 5.0
+
+主要文件：
+
+- src/app/page.tsx：前端主页面
 - src/app/globals.css：页面样式
-- src/app/api/generate/route.ts：生成图片并返回图片 URL
-- src/lib/ark.ts：火山引擎 Ark Seedream 图片生成 API 封装
-- .env.example：环境变量模板
-- Dockerfile：Docker 镜像构建
-- docker-compose.yml：本地一键启动
-- README.md：给其他使用者的运行说明
+- src/app/layout.tsx：页面 metadata 和根布局
+- src/app/api/generate/route.ts：图片生成 API 路由
+- src/lib/ark.ts：火山引擎 Ark 图片生成封装
+- .env.example：环境变量示例
+- Dockerfile：生产镜像构建
+- docker-compose.yml：本地容器启动
+- README.md：GitHub 使用说明
 
-五、安全要求
+五、接口设计
 
-API Key 不能写在前端页面中，也不能提交到 GitHub。
+POST /api/generate
 
-正确流程：
+请求示例：
 
-前端页面 -> 本项目后端接口 -> 火山引擎 Ark API
+{
+  "prompt": "黑暗主题、金色点缀、透明质感的游戏道具摆件",
+  "size": "2048x2048",
+  "watermark": false
+}
+
+成功响应：
+
+{
+  "status": "SUCCESS",
+  "resultUrl": "https://..."
+}
+
+失败响应：
+
+{
+  "error": "错误信息"
+}
+
+六、安全要求
+
+API Key 不能写入前端代码，不能提交到 GitHub。
+
+正确调用链路：
+
+浏览器页面 -> Next.js 后端接口 /api/generate -> 火山引擎 Ark API
 
 环境变量：
 
@@ -67,31 +126,14 @@ ARK_API_KEY=your_volcengine_ark_api_key
 ARK_BASE_URL=https://ark.cn-beijing.volces.com
 ARK_MODEL=doubao-seedream-5-0-260128
 
-.env、.env.local 必须加入 .gitignore。
+.env 和 .env.local 已写入 .gitignore。
 
-六、接口设计
+七、别人如何运行
 
-1. POST /api/generate
+Docker 方式：
 
-请求：
-
-{
-  "prompt": "礼物生成提示词",
-  "size": "2048x2048",
-  "watermark": false
-}
-
-响应：
-
-{
-  "status": "SUCCESS",
-  "resultUrl": "生成成功后的图片地址"
-}
-
-七、交付结果
-
-完成后，别人本地运行只需要：
-
+git clone https://github.com/Wanlinhan/ai-gift-generator.git
+cd ai-gift-generator
 cp .env.example .env
 docker compose up --build
 
@@ -99,4 +141,26 @@ docker compose up --build
 
 http://localhost:3000
 
-他只需要在 .env 中填写自己的 API Key，不需要手动安装 Node.js、Next.js、依赖包或数据库。
+运行前需要在 .env 中填写自己的 ARK_API_KEY。
+
+开发方式：
+
+git clone https://github.com/Wanlinhan/ai-gift-generator.git
+cd ai-gift-generator
+npm install
+cp .env.example .env.local
+npm run dev
+
+然后访问：
+
+http://localhost:3000
+
+八、验收标准
+
+- 首页可以正常打开。
+- 未配置 ARK_API_KEY 时，后端返回明确错误提示。
+- 配置正确 API Key 且模型已开通时，可以生成图片。
+- 浏览器源码中不包含真实 API Key。
+- GitHub 仓库中不包含 .env 或 .env.local。
+- Docker 运行方式写入 README。
+- README 使用真实仓库地址 https://github.com/Wanlinhan/ai-gift-generator。
