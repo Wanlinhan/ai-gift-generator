@@ -1,0 +1,102 @@
+AI 图片礼物生成器网站需求与实现
+
+一、目标
+
+本项目要做成一个别人可以拉到本地运行的 AI 图片礼物生成网站。使用者不需要配置复杂开发环境，只需要安装 Docker，复制环境变量示例文件，填入自己的火山引擎 Ark API Key，就可以在本地访问网站。
+
+最终运行方式：
+
+1. git clone 项目仓库
+2. cd 项目目录
+3. cp .env.example .env
+4. 在 .env 中填写自己的 ARK_API_KEY
+5. docker compose up --build
+6. 打开 http://localhost:3000
+
+二、产品范围
+
+第一版实现“文本生成图片礼物”工作流：
+
+- 用户输入礼物主题提示词
+- 点击开始生成
+- 页面显示任务状态
+- 后端调用火山引擎 Ark Seedream 5.0 图片生成接口
+- 生成成功后在页面中预览图片
+- 用户可以打开结果链接保存图片
+
+第一版暂不做登录、支付、多人协作、作品库、数据库和云端文件存储。后续如果需要公开给更多人使用，再增加账号系统、限流、任务历史和对象存储。
+
+三、UI 风格
+
+UI 参考现有 HTML 截图：
+
+- 页面整体为浅灰背景
+- 主视觉使用橙色品牌色
+- 顶部居中展示图片图标和标题
+- 主区域为左右两栏
+- 左侧是生成参数卡片和任务统计
+- 右侧是处理状态卡片和图片预览卡片
+- 主按钮为大号橙色按钮
+- 图片预览区域为深色背景
+- 状态包括 READY、GENERATING、SUCCESS、FAIL
+
+四、技术实现
+
+采用 Next.js 项目结构：
+
+- src/app/page.tsx：前端页面
+- src/app/globals.css：页面样式
+- src/app/api/generate/route.ts：生成图片并返回图片 URL
+- src/lib/ark.ts：火山引擎 Ark Seedream 图片生成 API 封装
+- .env.example：环境变量模板
+- Dockerfile：Docker 镜像构建
+- docker-compose.yml：本地一键启动
+- README.md：给其他使用者的运行说明
+
+五、安全要求
+
+API Key 不能写在前端页面中，也不能提交到 GitHub。
+
+正确流程：
+
+前端页面 -> 本项目后端接口 -> 火山引擎 Ark API
+
+环境变量：
+
+ARK_API_KEY=your_volcengine_ark_api_key
+ARK_BASE_URL=https://ark.cn-beijing.volces.com
+ARK_MODEL=doubao-seedream-5-0-260128
+
+.env、.env.local 必须加入 .gitignore。
+
+六、接口设计
+
+1. POST /api/generate
+
+请求：
+
+{
+  "prompt": "礼物生成提示词",
+  "size": "2048x2048",
+  "watermark": false
+}
+
+响应：
+
+{
+  "status": "SUCCESS",
+  "resultUrl": "生成成功后的图片地址"
+}
+
+七、交付结果
+
+完成后，别人本地运行只需要：
+
+cp .env.example .env
+docker compose up --build
+
+然后访问：
+
+http://localhost:3000
+
+他只需要在 .env 中填写自己的 API Key，不需要手动安装 Node.js、Next.js、依赖包或数据库。

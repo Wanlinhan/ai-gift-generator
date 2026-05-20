@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI 图片礼物生成器原型说明</title>
+    <style>
+        :root {
+            --brand: #ff7714;
+            --ink: #111827;
+            --muted: #9ca3af;
+            --page: #f7f7f7;
+            --surface: #ffffff;
+            --line: #ededed;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            min-height: 100vh;
+            display: grid;
+            place-items: center;
+            background: var(--page);
+            color: var(--ink);
+            font-family: "PingFang SC", "Microsoft YaHei", Arial, sans-serif;
+        }
+
+        main {
+            width: min(920px, calc(100vw - 32px));
+            border: 1px solid var(--line);
+            border-radius: 34px;
+            padding: 44px;
+            background: var(--surface);
+            box-shadow: 0 18px 44px rgba(17, 24, 39, 0.06);
+        }
+
+        .mark {
+            width: 86px;
+            height: 86px;
+            display: grid;
+            place-items: center;
+            border-radius: 26px;
+            color: #fff;
+            background: var(--brand);
+            box-shadow: 0 18px 34px -18px rgba(255, 119, 20, 0.9);
+            font-size: 38px;
+            font-weight: 900;
+        }
+
+        h1 {
+            margin: 26px 0 10px;
+            font-size: 38px;
+            line-height: 1.15;
+            letter-spacing: 0;
+        }
+
+        p {
+            margin: 0;
+            color: #4b5563;
+            font-size: 17px;
+            line-height: 1.75;
+        }
+
+        code {
+            border-radius: 8px;
+            padding: 3px 7px;
+            background: #f3f4f6;
+            color: #1f2937;
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+            font-size: 0.92em;
+        }
+
+        .commands {
+            margin-top: 28px;
+            border-radius: 22px;
+            padding: 22px;
+            background: #111827;
+            color: #f9fafb;
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+            font-size: 14px;
+            line-height: 1.8;
+            overflow-x: auto;
+        }
+
+        .note {
+            margin-top: 24px;
+            border-left: 6px solid var(--brand);
+            border-radius: 16px;
+            padding: 16px 18px;
+            background: #fff7ed;
+            color: #7c2d12;
+            font-weight: 700;
+        }
+    </style>
+</head>
+<body>
+    <main>
+        <div class="mark">图</div>
+        <h1>AI 图片礼物生成器</h1>
+        <p>
+            当前正式实现已经迁移到 Next.js 项目。请不要再用这个静态 HTML 调用模型接口；
+            API Key 只应放在 <code>.env.local</code> 或 <code>.env</code> 中，由后端接口读取。
+        </p>
+
+        <div class="commands">
+cd "/Users/hanwanlin/Desktop/AI图片和礼物生成器网站"<br>
+cp .env.example .env.local<br>
+npm run dev<br>
+打开 http://localhost:3000
+        </div>
+
+        <p class="note">
+            默认模型：doubao-seedream-5-0-260128。正式页面会通过 /api/generate 生成图片并返回图片 URL。
+        </p>
+    </main>
+</body>
+</html>
