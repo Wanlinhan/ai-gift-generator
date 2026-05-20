@@ -5,6 +5,15 @@ import { useMemo, useState } from "react";
 
 type ImageStatus = "READY" | "GENERATING" | "SUCCESS" | "FAIL";
 
+const aspectOptions = [
+  { label: "自动", value: "auto", size: undefined },
+  { label: "1:1", value: "1:1", size: "2048x2048" },
+  { label: "16:9", value: "16:9", size: "2560x1440" },
+  { label: "9:16", value: "9:16", size: "1440x2560" },
+  { label: "4:3", value: "4:3", size: "2304x1728" },
+  { label: "3:4", value: "3:4", size: "1728x2304" }
+] as const;
+
 const defaultPrompt =
   "画面中生成单个黑暗主题有关金色为点缀色调的物品，每次生成都和上一个不同，纯黑色背景，游戏道具，质感透亮，细腻，物品摆件，亮晶晶，二次元风格";
 
@@ -15,6 +24,7 @@ export default function Home() {
   const [error, setError] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
   const [completedCount, setCompletedCount] = useState(0);
+  const [aspect, setAspect] = useState<(typeof aspectOptions)[number]["value"]>("auto");
 
   const statusLabel = useMemo(() => {
     const labels: Record<ImageStatus, string> = {
@@ -32,6 +42,7 @@ export default function Home() {
     setResultUrl(null);
     setStatus("GENERATING");
     setIsGenerating(true);
+    const selectedAspect = aspectOptions.find((option) => option.value === aspect);
 
     try {
       const response = await fetch("/api/generate", {
@@ -41,6 +52,7 @@ export default function Home() {
         },
         body: JSON.stringify({
           prompt,
+          ...(selectedAspect?.size ? { size: selectedAspect.size } : {}),
           watermark: false
         })
       });
@@ -93,6 +105,23 @@ export default function Home() {
               spellCheck={false}
               className="prompt-input"
             />
+
+            <div className="aspect-control">
+              <label className="field-label">画幅</label>
+              <div className="aspect-options" role="group" aria-label="选择图片画幅">
+                {aspectOptions.map((option) => (
+                  <button
+                    key={option.value}
+                    type="button"
+                    className={aspect === option.value ? "active" : ""}
+                    onClick={() => setAspect(option.value)}
+                    disabled={isGenerating}
+                  >
+                    {option.label}
+                  </button>
+                ))}
+              </div>
+            </div>
 
             <div className="preset-row">
               <span>

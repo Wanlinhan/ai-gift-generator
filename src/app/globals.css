@@ -152,6 +152,48 @@ a {
   box-shadow: 0 0 0 4px rgba(255, 119, 20, 0.12), inset 0 3px 10px rgba(17, 24, 39, 0.06);
 }
 
+.aspect-control {
+  margin-top: 18px;
+}
+
+.aspect-options {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.aspect-options button {
+  min-height: 42px;
+  border: 1px solid #eceff3;
+  border-radius: 14px;
+  color: #4b5563;
+  background: #fff;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 900;
+  transition: border-color 160ms ease, color 160ms ease, background 160ms ease, transform 160ms ease;
+}
+
+.aspect-options button:hover:not(:disabled) {
+  border-color: rgba(255, 119, 20, 0.48);
+  color: var(--brand);
+}
+
+.aspect-options button.active {
+  border-color: rgba(255, 119, 20, 0.55);
+  color: var(--brand);
+  background: #fff7ed;
+}
+
+.aspect-options button:active:not(:disabled) {
+  transform: scale(0.97);
+}
+
+.aspect-options button:disabled {
+  cursor: not-allowed;
+  opacity: 0.62;
+}
+
 .preset-row {
   display: flex;
   flex-wrap: wrap;
@@ -439,6 +481,10 @@ a {
   .prompt-input {
     min-height: 210px;
     font-size: 15px;
+  }
+
+  .aspect-options {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
   .generate-button {
