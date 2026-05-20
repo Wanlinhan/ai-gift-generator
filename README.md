@@ -40,7 +40,30 @@ ARK_BASE_URL=https://ark.cn-beijing.volces.com
 ARK_MODEL=doubao-seedream-5-0-260128
 ```
 
-不要提交 `.env` 或 `.env.local`。项目已在 `.gitignore` 中忽略这些文件。
+
+## 本地开发
+
+前提是安装 Node.js 20 或更高版本。
+
+```bash
+git clone https://github.com/Wanlinhan/ai-gift-generator.git
+cd ai-gift-generator
+npm install
+cp .env.example .env.local
+npm run dev
+```
+
+访问：
+
+```txt
+http://localhost:3000
+```
+
+生产构建检查：
+
+```bash
+npm run build
+```
 
 ## Docker 运行
 
@@ -70,29 +93,6 @@ http://localhost:3000
 docker compose down
 ```
 
-## 本地开发
-
-前提是安装 Node.js 20 或更高版本。
-
-```bash
-git clone https://github.com/Wanlinhan/ai-gift-generator.git
-cd ai-gift-generator
-npm install
-cp .env.example .env.local
-npm run dev
-```
-
-访问：
-
-```txt
-http://localhost:3000
-```
-
-生产构建检查：
-
-```bash
-npm run build
-```
 
 ## API
 
@@ -102,7 +102,7 @@ npm run build
 
 ```json
 {
-  "prompt": "黑暗主题、金色点缀、透明质感的游戏道具摆件",
+  "prompt": "生成图片的描述",
   "size": "2560x1440",
   "watermark": false
 }
