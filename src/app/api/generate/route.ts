@@ -6,7 +6,7 @@ export async function POST(request: Request) {
     const body = await request.json();
     const result = await createArkImage({
       prompt: String(body?.prompt || ""),
-      size: String(body?.size || "2048x2048"),
+      size: typeof body?.size === "string" && body.size.trim() ? body.size.trim() : undefined,
       watermark: body?.watermark === true
     });
 

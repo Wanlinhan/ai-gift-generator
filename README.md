@@ -102,7 +102,6 @@ npm run build
 ```json
 {
   "prompt": "黑暗主题、金色点缀、透明质感的游戏道具摆件",
-  "size": "2048x2048",
   "watermark": false
 }
 ```

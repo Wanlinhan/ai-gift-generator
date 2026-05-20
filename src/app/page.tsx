@@ -6,7 +6,7 @@ import { useMemo, useState } from "react";
 type ImageStatus = "READY" | "GENERATING" | "SUCCESS" | "FAIL";
 
 const defaultPrompt =
-  "画面中生成单个黑暗主题有关金色为点缀色调的物品，每次生成都和上一个不同，纯黑色背景，游戏道具，质感透亮，细腻，物品摆件，亮晶晶，二次元风格，1:1宽高比，正方形构图";
+  "画面中生成单个黑暗主题有关金色为点缀色调的物品，每次生成都和上一个不同，纯黑色背景，游戏道具，质感透亮，细腻，物品摆件，亮晶晶，二次元风格";
 
 export default function Home() {
   const [prompt, setPrompt] = useState(defaultPrompt);
@@ -41,7 +41,6 @@ export default function Home() {
         },
         body: JSON.stringify({
           prompt,
-          size: "2048x2048",
           watermark: false
         })
       });
@@ -98,7 +97,7 @@ export default function Home() {
             <div className="preset-row">
               <span>
                 <Sparkles size={16} />
-                1:1 方形构图
+                Prompt 决定画面
               </span>
               <span>
                 <WandSparkles size={16} />

@@ -45,9 +45,19 @@ async function readJsonResponse(response: Response) {
 export async function createArkImage(input: GenerateRequest): Promise<GenerateResponse> {
   const { apiKey, baseUrl, model } = getArkConfig();
   const prompt = input.prompt.trim();
+  const payload: Record<string, unknown> = {
+    model,
+    prompt,
+    response_format: "url",
+    watermark: input.watermark ?? false
+  };
 
   if (!prompt) {
     throw new Error("请输入图片礼物生成提示词。");
+  }
+
+  if (input.size) {
+    payload.size = input.size;
   }
 
   const response = await fetch(`${baseUrl}/api/v3/images/generations`, {
@@ -56,13 +66,7 @@ export async function createArkImage(input: GenerateRequest): Promise<GenerateRe
       "Content-Type": "application/json",
       Authorization: `Bearer ${apiKey}`
     },
-    body: JSON.stringify({
-      model,
-      prompt,
-      size: input.size || "2048x2048",
-      response_format: "url",
-      watermark: input.watermark ?? false
-    })
+    body: JSON.stringify(payload)
   });
 
   const data = await readJsonResponse(response);
