@@ -28,24 +28,61 @@
 
 ## 环境变量
 
-复制示例文件：
+### 复制示例文件：
+
+#### macOS / Linux
 
 ```bash
 cp .env.example .env
+```
+
+#### Windows（PowerShell）
+
+```powershell
+copy .env.example .env
+```
+
+### 编辑 `.env` 文件：
+
+#### macOS
+
+```bash
+open -e .env
+```
+
+#### Windows
+
+可直接使用：
+
+```powershell
+notepad .env
 ```
 
 填写自己的火山引擎 Ark API Key：
 
 ```env
 ARK_API_KEY=your_volcengine_ark_api_key
-ARK_BASE_URL=https://ark.cn-beijing.volces.com
+ARK_BASE_URL=https://ark.cn-beijing.volces.com/api/v3
+
+# 图片生成模型
 ARK_IMAGE_MODEL=doubao-seedream-5-0-260128
+
+# 视频生成模型
 ARK_VIDEO_MODEL=doubao-seedance-2-0-260128
 ```
 
-图片和视频模型需要分别在 Ark Console 开通。只开通图片模型时，图片模式可用；视频模式会提示视频模型未开通。
+修改完成后，重新启动开发服务器：
 
-不要提交 `.env` 或 `.env.local`。项目已在 `.gitignore` 中忽略这些文件。
+```bash
+npm run dev
+```
+
+图片和视频模型需要分别在 Ark Console 开通。
+
+- 只开通图片模型时，图片模式可用
+- 视频模式会提示“视频模型未开通”
+- 部分视频模型可能需要白名单权限或单独申请
+
 
 ## 本地开发
 
