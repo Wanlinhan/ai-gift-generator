@@ -1,48 +1,75 @@
-AI 图片礼物生成器需求与实现说明
+AI 礼物生成器需求与实现说明
 
 一、项目定位
 
-本项目是一个可本地部署的 AI 图片礼物生成器。使用者输入礼物主题提示词后，网站通过后端接口调用火山引擎 Ark Seedream 5.0 图片生成模型，按用户 prompt 描述生成礼物图片，并在页面中展示结果。
+本项目是一个可本地部署的 AI 图片/视频礼物生成器。使用者输入礼物主题提示词后，网站通过后端接口调用火山引擎 Ark 模型生成图片或视频，并在页面中展示结果。
 
-项目重点不是公开 SaaS 平台，而是“别人可以 clone 项目后在自己的电脑本地运行”。使用者需要使用自己的火山引擎 Ark API Key。
+项目重点不是公开 SaaS 平台，而是“别人可以 clone 项目后在自己的电脑本地运行”。使用者需要使用自己的火山引擎 Ark API Key，并自行开通需要使用的模型。
 
 二、已完成功能
 
 1. 前端页面
 
 - 首页提供提示词输入框。
-- 首页提供画幅选择：自动、1:1、16:9、9:16、4:3、3:4。
+- 首页提供生成类型切换：图片、视频。
+- 页面不提供单独比例按钮，比例从用户 prompt 中自动识别。
 - 页面保留橙色品牌色、浅灰背景、白色圆角卡片和双栏布局。
 - 左侧是生成参数和统计信息。
-- 右侧是状态卡片和图片预览区域。
+- 右侧是状态卡片和渲染预览区域。
 - 默认提示词为黑暗主题、金色点缀、游戏道具、透明质感、二次元风格。
 
 2. 图片生成
 
-- 用户点击“开始生成”后，前端请求本项目后端接口 /api/generate。
+- 用户选择“图片”并点击生成后，前端请求 /api/generate。
 - 后端读取环境变量 ARK_API_KEY。
 - 后端调用火山引擎 Ark 图片生成接口 /api/v3/images/generations。
-- 默认模型为 doubao-seedream-5-0-260128。
+- 默认图片模型为 doubao-seedream-5-0-260128，可通过 ARK_IMAGE_MODEL 配置。
 - 用户 prompt 决定画面内容。
-- 画幅控件决定是否向 Ark 传入 size；选择“自动”时不传 size，选择具体比例时传对应尺寸。
+- 系统从 prompt 中识别比例，并转换为 size 参数。
+- 识别不到比例时，不传 size，由 Ark 使用默认配置。
 - 默认不添加水印。
 - 生成成功后返回图片 URL。
 
-3. 状态展示
+3. 视频生成
+
+- 用户选择“视频”并点击生成后，前端请求 /api/video/generate。
+- 后端调用火山引擎 Ark 视频生成任务接口 /api/v3/contents/generations/tasks。
+- 默认视频模型为 doubao-seedance-2-0-260128，可通过 ARK_VIDEO_MODEL 配置。
+- 创建视频任务成功后返回 taskId。
+- 前端每 3 秒轮询 /api/video/tasks/[taskId]。
+- 视频生成成功后返回视频 URL 并在页面中预览。
+- 视频模型需要在 Ark Console 单独开通。
+
+4. Prompt 比例识别
+
+默认从用户 prompt 中识别比例：
+
+- 16:9、横图、横版、宽屏、电影画幅 -> 图片 2560x1440，视频 16:9
+- 9:16、竖图、竖版、手机壁纸、手机海报 -> 图片 1440x2560，视频 9:16
+- 4:3 -> 图片 2304x1728，视频 4:3
+- 3:4、竖版海报 -> 图片 1728x2304，视频 3:4
+- 1:1、方图、正方形、头像 -> 图片 2048x2048，视频 1:1
+
+识别不到比例时，图片不传 size，视频不传 ratio。
+
+5. 状态展示
 
 当前状态包括：
 
 - READY：页面初始状态
 - GENERATING：图片正在生成
-- SUCCESS：图片生成成功
-- FAIL：图片生成失败
+- QUEUED：视频任务排队中
+- RUNNING：视频任务运行中
+- SUCCESS：生成成功
+- FAIL：生成失败
 
-4. 结果展示
+6. 结果展示
 
-- 生成成功后在右侧预览区域展示图片。
-- 用户可以点击“打开图片”在新标签页打开生成结果。
+- 图片生成成功后在右侧预览区域展示图片。
+- 视频生成成功后在右侧预览区域展示视频。
+- 用户可以点击“打开图片”或“打开视频”在新标签页打开生成结果。
 
-5. 本地部署
+7. 本地部署
 
 项目支持两种运行方式：
 
@@ -60,8 +87,6 @@ AI 图片礼物生成器需求与实现说明
 - 云端对象存储
 - 多用户额度管理
 - 公开接口鉴权
-- 视频生成
-- 异步任务轮询
 
 这些功能可以作为后续版本扩展。
 
@@ -75,7 +100,7 @@ AI 图片礼物生成器需求与实现说明
 - lucide-react
 - Docker
 - Docker Compose
-- 火山引擎 Ark Seedream 5.0
+- 火山引擎 Ark Seedream / Seedance
 
 主要文件：
 
@@ -83,7 +108,10 @@ AI 图片礼物生成器需求与实现说明
 - src/app/globals.css：页面样式
 - src/app/layout.tsx：页面 metadata 和根布局
 - src/app/api/generate/route.ts：图片生成 API 路由
-- src/lib/ark.ts：火山引擎 Ark 图片生成封装
+- src/app/api/video/generate/route.ts：视频任务创建 API 路由
+- src/app/api/video/tasks/[taskId]/route.ts：视频任务查询 API 路由
+- src/lib/ark.ts：火山引擎 Ark 图片/视频 API 封装
+- src/lib/prompt.ts：prompt 比例识别
 - .env.example：环境变量示例
 - Dockerfile：生产镜像构建
 - docker-compose.yml：本地容器启动
@@ -91,21 +119,51 @@ AI 图片礼物生成器需求与实现说明
 
 五、接口设计
 
-POST /api/generate
+1. POST /api/generate
+
+图片生成接口。
 
 请求示例：
 
 {
-  "prompt": "黑暗主题、金色点缀、透明质感的游戏道具摆件",
-  "size": "2560x1440",
+  "prompt": "黑暗主题、金色点缀、透明质感的游戏道具摆件，16:9 横图",
   "watermark": false
 }
-
-size 为可选字段。前端选择“自动”时不传 size；选择 16:9、9:16 等具体画幅时传对应尺寸。
 
 成功响应：
 
 {
+  "status": "SUCCESS",
+  "resultUrl": "https://..."
+}
+
+2. POST /api/video/generate
+
+视频任务创建接口。
+
+请求示例：
+
+{
+  "prompt": "黑金色游戏道具缓慢旋转，16:9 横版视频",
+  "duration": 5,
+  "generateAudio": true
+}
+
+成功响应：
+
+{
+  "taskId": "cgt-...",
+  "status": "QUEUED"
+}
+
+3. GET /api/video/tasks/[taskId]
+
+视频任务查询接口。
+
+成功响应：
+
+{
+  "taskId": "cgt-...",
   "status": "SUCCESS",
   "resultUrl": "https://..."
 }
@@ -122,13 +180,14 @@ API Key 不能写入前端代码，不能提交到 GitHub。
 
 正确调用链路：
 
-浏览器页面 -> Next.js 后端接口 /api/generate -> 火山引擎 Ark API
+浏览器页面 -> Next.js 后端接口 -> 火山引擎 Ark API
 
 环境变量：
 
 ARK_API_KEY=your_volcengine_ark_api_key
 ARK_BASE_URL=https://ark.cn-beijing.volces.com
-ARK_MODEL=doubao-seedream-5-0-260128
+ARK_IMAGE_MODEL=doubao-seedream-5-0-260128
+ARK_VIDEO_MODEL=doubao-seedance-2-0-260128
 
 .env 和 .env.local 已写入 .gitignore。
 
@@ -145,7 +204,7 @@ docker compose up --build
 
 http://localhost:3000
 
-运行前需要在 .env 中填写自己的 ARK_API_KEY。
+运行前需要在 .env 中填写自己的 ARK_API_KEY，并按需开通图片/视频模型。
 
 开发方式：
 
@@ -162,8 +221,11 @@ http://localhost:3000
 八、验收标准
 
 - 首页可以正常打开。
+- 图片/视频模式可以切换。
 - 未配置 ARK_API_KEY 时，后端返回明确错误提示。
 - 配置正确 API Key 且模型已开通时，可以生成图片。
+- 配置视频模型且开通服务后，可以创建视频任务并轮询结果。
+- prompt 中包含比例描述时，后端能转换为图片 size 或视频 ratio。
 - 浏览器源码中不包含真实 API Key。
 - GitHub 仓库中不包含 .env 或 .env.local。
 - Docker 运行方式写入 README。

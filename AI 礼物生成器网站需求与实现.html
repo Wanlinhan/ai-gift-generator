@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI 图片礼物生成器原型说明</title>
+    <title>AI 礼物生成器原型说明</title>
     <style>
         :root {
             --brand: #ff7714;
@@ -99,7 +99,7 @@
 <body>
     <main>
         <div class="mark">图</div>
-        <h1>AI 图片礼物生成器</h1>
+        <h1>AI 图片/视频礼物生成器</h1>
         <p>
             当前正式实现已经迁移到 Next.js 项目。请不要再用这个静态 HTML 调用模型接口；
             API Key 只应放在 <code>.env.local</code> 或 <code>.env</code> 中，由后端接口读取。
@@ -113,7 +113,7 @@ npm run dev<br>
         </div>
 
         <p class="note">
-            默认模型：doubao-seedream-5-0-260128。正式页面会通过 /api/generate 生成图片并返回图片 URL。
+            图片模式通过 /api/generate 生成图片；视频模式通过 /api/video/generate 创建任务并轮询结果。
         </p>
     </main>
 </body>

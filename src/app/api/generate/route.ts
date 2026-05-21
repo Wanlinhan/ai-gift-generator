@@ -1,12 +1,17 @@
 import { NextResponse } from "next/server";
 import { createArkImage } from "@/src/lib/ark";
+import { inferImageSizeFromPrompt } from "@/src/lib/prompt";
 
 export async function POST(request: Request) {
   try {
     const body = await request.json();
+    const prompt = String(body?.prompt || "");
     const result = await createArkImage({
-      prompt: String(body?.prompt || ""),
-      size: typeof body?.size === "string" && body.size.trim() ? body.size.trim() : undefined,
+      prompt,
+      size:
+        typeof body?.size === "string" && body.size.trim()
+          ? body.size.trim()
+          : inferImageSizeFromPrompt(prompt),
       watermark: body?.watermark === true
     });
 
