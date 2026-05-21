@@ -11,6 +11,9 @@
 - 默认从 prompt 自动识别比例，例如 `16:9`、`9:16`、`横图`、`竖图`、`手机壁纸`、`方图`
 - 图片直出预览
 - 视频异步任务创建、状态轮询和预览
+- 生成数量输入：图片最多 10 个，视频最多 3 个
+- 使用 SQLite 保存图片/视频生成历史
+- 历史记录支持预览、打开结果和删除
 - 橙色卡片式双栏 UI
 - 状态显示：`READY`、`GENERATING`、`QUEUED`、`RUNNING`、`SUCCESS`、`FAIL`
 - 后端代理火山 Ark API，避免在前端暴露 API Key
@@ -23,6 +26,7 @@
 - React 19
 - TypeScript
 - lucide-react
+- Node.js 内置 SQLite
 - Docker / Docker Compose
 - 火山引擎 Ark Seedream / Seedance
 
@@ -41,6 +45,9 @@ ARK_API_KEY=your_volcengine_ark_api_key
 ARK_BASE_URL=https://ark.cn-beijing.volces.com
 ARK_IMAGE_MODEL=doubao-seedream-5-0-260128
 ARK_VIDEO_MODEL=doubao-seedance-2-0-260128
+DATABASE_URL=file:./data/app.db
+MAX_IMAGE_COUNT=10
+MAX_VIDEO_COUNT=3
 ```
 
 图片和视频模型需要分别在 Ark Console 开通。只开通图片模型时，图片模式可用；视频模式会提示视频模型未开通。
@@ -49,7 +56,7 @@ ARK_VIDEO_MODEL=doubao-seedance-2-0-260128
 
 ## 本地开发
 
-前提是安装 Node.js 20 或更高版本。
+前提是安装 Node.js 24 或更高版本。
 
 ```bash
 git clone https://github.com/Wanlinhan/ai-gift-generator.git
@@ -70,6 +77,8 @@ http://localhost:3000
 ```bash
 npm run build
 ```
+
+本地历史记录会写入 `data/app.db`。该目录已被 `.gitignore` 忽略，不会上传到 GitHub。
 
 ## Docker 运行
 
@@ -99,6 +108,7 @@ http://localhost:3000
 docker compose down
 ```
 
+Docker 模式下，`./data` 会挂载到容器内保存 SQLite 数据库，容器重建后历史记录仍然保留。
 
 ## Prompt 比例识别
 
@@ -123,6 +133,7 @@ docker compose down
 ```json
 {
   "prompt": "黑暗主题、金色点缀、透明质感的游戏道具摆件，16:9 横图",
+  "count": 3,
   "watermark": false
 }
 ```
@@ -132,7 +143,8 @@ docker compose down
 ```json
 {
   "status": "SUCCESS",
-  "resultUrl": "https://..."
+  "resultUrl": "https://...",
+  "generations": []
 }
 ```
 
@@ -145,6 +157,7 @@ docker compose down
 ```json
 {
   "prompt": "黑金色游戏道具缓慢旋转，16:9 横版视频",
+  "count": 2,
   "duration": 5,
   "generateAudio": true
 }
@@ -155,7 +168,9 @@ docker compose down
 ```json
 {
   "taskId": "cgt-...",
-  "status": "QUEUED"
+  "taskIds": ["cgt-..."],
+  "status": "QUEUED",
+  "generations": []
 }
 ```
 
@@ -179,7 +194,28 @@ docker compose down
 {
   "taskId": "cgt-...",
   "status": "SUCCESS",
-  "resultUrl": "https://..."
+  "resultUrl": "https://...",
+  "generation": {}
+}
+```
+
+### GET `/api/generations`
+
+读取生成历史。
+
+```json
+{
+  "generations": []
+}
+```
+
+### DELETE `/api/generations/[id]`
+
+删除一条生成历史。
+
+```json
+{
+  "ok": true
 }
 ```
 
@@ -208,7 +244,5 @@ docker compose down
 ## 当前限制
 
 - 不包含登录系统
-- 不保存生成历史
-- 不包含数据库
 - 不包含对象存储
 - 不提供公共额度共享，使用者需要填写自己的 Ark API Key

@@ -9,6 +9,8 @@ export type GenerateRequest = {
 export type GenerateResponse = {
   status: ArkGenerationStatus;
   resultUrl: string | null;
+  model?: string;
+  size?: string;
 };
 
 export type VideoGenerateRequest = {
@@ -21,6 +23,8 @@ export type VideoGenerateRequest = {
 export type VideoGenerateResponse = {
   taskId: string;
   status: ArkGenerationStatus;
+  model?: string;
+  ratio?: string;
 };
 
 export type VideoTaskResponse = {
@@ -104,7 +108,9 @@ export async function createArkImage(input: GenerateRequest): Promise<GenerateRe
 
   return {
     status: "SUCCESS",
-    resultUrl
+    resultUrl,
+    model: imageModel,
+    size: input.size
   };
 }
 
@@ -166,7 +172,9 @@ export async function createArkVideoTask(input: VideoGenerateRequest): Promise<V
 
   return {
     taskId,
-    status: "QUEUED"
+    status: "QUEUED",
+    model: videoModel,
+    ratio: input.ratio
   };
 }
 

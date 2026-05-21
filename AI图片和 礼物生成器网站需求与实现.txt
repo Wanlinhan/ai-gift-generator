@@ -12,6 +12,7 @@ AI 礼物生成器需求与实现说明
 
 - 首页提供提示词输入框。
 - 首页提供生成类型切换：图片、视频。
+- 首页提供生成数量输入，图片最多 10 个，视频最多 3 个。
 - 页面不提供单独比例按钮，比例从用户 prompt 中自动识别。
 - 页面保留橙色品牌色、浅灰背景、白色圆角卡片和双栏布局。
 - 左侧是生成参数和统计信息。
@@ -27,6 +28,8 @@ AI 礼物生成器需求与实现说明
 - 用户 prompt 决定画面内容。
 - 系统从 prompt 中识别比例，并转换为 size 参数。
 - 识别不到比例时，不传 size，由 Ark 使用默认配置。
+- 支持一次生成多张图片。
+- 每条生成结果都会写入 SQLite 数据库。
 - 默认不添加水印。
 - 生成成功后返回图片 URL。
 
@@ -38,6 +41,8 @@ AI 礼物生成器需求与实现说明
 - 创建视频任务成功后返回 taskId。
 - 前端每 3 秒轮询 /api/video/tasks/[taskId]。
 - 视频生成成功后返回视频 URL 并在页面中预览。
+- 支持一次创建多个视频任务。
+- 每个视频任务都会写入 SQLite 数据库，轮询成功或失败后更新记录。
 - 视频模型需要在 Ark Console 单独开通。
 
 4. Prompt 比例识别
@@ -69,7 +74,14 @@ AI 礼物生成器需求与实现说明
 - 视频生成成功后在右侧预览区域展示视频。
 - 用户可以点击“打开图片”或“打开视频”在新标签页打开生成结果。
 
-7. 本地部署
+7. 历史记录
+
+- 使用 SQLite 保存每次生成记录。
+- 记录字段包括类型、prompt、状态、结果 URL、视频任务 ID、错误信息、尺寸、比例、模型、创建时间和更新时间。
+- 前端展示历史记录列表。
+- 历史记录支持打开结果和删除。
+
+8. 本地部署
 
 项目支持两种运行方式：
 
@@ -82,8 +94,6 @@ AI 礼物生成器需求与实现说明
 
 - 登录系统
 - 支付系统
-- 生成历史
-- 数据库
 - 云端对象存储
 - 多用户额度管理
 - 公开接口鉴权
@@ -98,6 +108,7 @@ AI 礼物生成器需求与实现说明
 - React 19
 - TypeScript
 - lucide-react
+- Node.js 内置 SQLite
 - Docker
 - Docker Compose
 - 火山引擎 Ark Seedream / Seedance
@@ -108,9 +119,13 @@ AI 礼物生成器需求与实现说明
 - src/app/globals.css：页面样式
 - src/app/layout.tsx：页面 metadata 和根布局
 - src/app/api/generate/route.ts：图片生成 API 路由
+- src/app/api/generations/route.ts：历史记录列表 API 路由
+- src/app/api/generations/[id]/route.ts：历史记录读取和删除 API 路由
 - src/app/api/video/generate/route.ts：视频任务创建 API 路由
 - src/app/api/video/tasks/[taskId]/route.ts：视频任务查询 API 路由
 - src/lib/ark.ts：火山引擎 Ark 图片/视频 API 封装
+- src/lib/database.ts：SQLite 数据库封装
+- src/lib/count.ts：生成数量解析和限制
 - src/lib/prompt.ts：prompt 比例识别
 - .env.example：环境变量示例
 - Dockerfile：生产镜像构建
@@ -127,6 +142,7 @@ AI 礼物生成器需求与实现说明
 
 {
   "prompt": "黑暗主题、金色点缀、透明质感的游戏道具摆件，16:9 横图",
+  "count": 3,
   "watermark": false
 }
 
@@ -134,7 +150,8 @@ AI 礼物生成器需求与实现说明
 
 {
   "status": "SUCCESS",
-  "resultUrl": "https://..."
+  "resultUrl": "https://...",
+  "generations": []
 }
 
 2. POST /api/video/generate
@@ -145,6 +162,7 @@ AI 礼物生成器需求与实现说明
 
 {
   "prompt": "黑金色游戏道具缓慢旋转，16:9 横版视频",
+  "count": 2,
   "duration": 5,
   "generateAudio": true
 }
@@ -153,7 +171,9 @@ AI 礼物生成器需求与实现说明
 
 {
   "taskId": "cgt-...",
-  "status": "QUEUED"
+  "taskIds": ["cgt-..."],
+  "status": "QUEUED",
+  "generations": []
 }
 
 3. GET /api/video/tasks/[taskId]
@@ -165,7 +185,28 @@ AI 礼物生成器需求与实现说明
 {
   "taskId": "cgt-...",
   "status": "SUCCESS",
-  "resultUrl": "https://..."
+  "resultUrl": "https://...",
+  "generation": {}
+}
+
+4. GET /api/generations
+
+历史记录列表接口。
+
+成功响应：
+
+{
+  "generations": []
+}
+
+5. DELETE /api/generations/[id]
+
+删除历史记录接口。
+
+成功响应：
+
+{
+  "ok": true
 }
 
 失败响应：
@@ -188,6 +229,9 @@ ARK_API_KEY=your_volcengine_ark_api_key
 ARK_BASE_URL=https://ark.cn-beijing.volces.com
 ARK_IMAGE_MODEL=doubao-seedream-5-0-260128
 ARK_VIDEO_MODEL=doubao-seedance-2-0-260128
+DATABASE_URL=file:./data/app.db
+MAX_IMAGE_COUNT=10
+MAX_VIDEO_COUNT=3
 
 .env 和 .env.local 已写入 .gitignore。
 
@@ -204,7 +248,7 @@ docker compose up --build
 
 http://localhost:3000
 
-运行前需要在 .env 中填写自己的 ARK_API_KEY，并按需开通图片/视频模型。
+运行前需要在 .env 中填写自己的 ARK_API_KEY，并按需开通图片/视频模型。SQLite 数据库默认保存在 data/app.db。
 
 开发方式：
 
@@ -222,9 +266,12 @@ http://localhost:3000
 
 - 首页可以正常打开。
 - 图片/视频模式可以切换。
+- 前端可以设置生成数量，图片最多 10 个，视频最多 3 个。
 - 未配置 ARK_API_KEY 时，后端返回明确错误提示。
 - 配置正确 API Key 且模型已开通时，可以生成图片。
 - 配置视频模型且开通服务后，可以创建视频任务并轮询结果。
+- 生成成功或失败后，数据库会保存对应记录。
+- 历史记录可以展示和删除。
 - prompt 中包含比例描述时，后端能转换为图片 size 或视频 ratio。
 - 浏览器源码中不包含真实 API Key。
 - GitHub 仓库中不包含 .env 或 .env.local。

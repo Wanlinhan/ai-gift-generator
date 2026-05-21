@@ -1,10 +1,25 @@
 "use client";
 
-import { Cpu, Download, ImageIcon, MonitorPlay, Settings2, Sparkles, Video, WandSparkles, Zap } from "lucide-react";
+import { Cpu, Download, ImageIcon, MonitorPlay, Settings2, Sparkles, Trash2, Video, WandSparkles, Zap } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
 type GenerationMode = "image" | "video";
 type GenerationStatus = "READY" | "GENERATING" | "QUEUED" | "RUNNING" | "SUCCESS" | "FAIL";
+
+type GenerationRecord = {
+  id: string;
+  mode: GenerationMode;
+  prompt: string;
+  status: GenerationStatus;
+  resultUrl: string | null;
+  providerTaskId: string | null;
+  error: string | null;
+  size: string | null;
+  ratio: string | null;
+  model: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
 
 const defaultPrompt =
   "画面中生成单个黑暗主题有关金色为点缀色调的物品，每次生成都和上一个不同，纯黑色背景，游戏道具，质感透亮，细腻，物品摆件，亮晶晶，二次元风格";
@@ -12,12 +27,16 @@ const defaultPrompt =
 export default function Home() {
   const [prompt, setPrompt] = useState(defaultPrompt);
   const [mode, setMode] = useState<GenerationMode>("image");
+  const [count, setCount] = useState(1);
   const [status, setStatus] = useState<GenerationStatus>("READY");
   const [taskId, setTaskId] = useState("");
+  const [activeVideoTaskIds, setActiveVideoTaskIds] = useState<string[]>([]);
   const [resultUrl, setResultUrl] = useState<string | null>(null);
   const [error, setError] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
-  const [completedCount, setCompletedCount] = useState(0);
+  const [history, setHistory] = useState<GenerationRecord[]>([]);
+
+  const maxCount = mode === "image" ? 10 : 3;
 
   const statusLabel = useMemo(() => {
     const labels: Record<GenerationStatus, string> = {
@@ -32,37 +51,62 @@ export default function Home() {
     return labels[status];
   }, [status]);
 
+  const stats = useMemo(() => {
+    return {
+      queued: history.filter((item) => item.status === "QUEUED").length,
+      running: history.filter((item) => item.status === "GENERATING" || item.status === "RUNNING").length,
+      completed: history.filter((item) => item.status === "SUCCESS").length
+    };
+  }, [history]);
+
   useEffect(() => {
-    if (mode !== "video" || !taskId || !isGenerating) {
+    refreshHistory();
+  }, []);
+
+  useEffect(() => {
+    if (count > maxCount) {
+      setCount(maxCount);
+    }
+  }, [count, maxCount]);
+
+  useEffect(() => {
+    if (activeVideoTaskIds.length === 0) {
       return;
     }
 
     const timer = window.setInterval(async () => {
+      const pending: string[] = [];
+
       try {
-        const response = await fetch(`/api/video/tasks/${encodeURIComponent(taskId)}`, {
-          cache: "no-store"
-        });
-        const data = await response.json();
+        const results = await Promise.all(
+          activeVideoTaskIds.map(async (id) => {
+            const response = await fetch(`/api/video/tasks/${encodeURIComponent(id)}`, {
+              cache: "no-store"
+            });
+            const data = await response.json();
 
-        if (!response.ok) {
-          throw new Error(data?.error || "查询视频任务失败。");
-        }
+            if (!response.ok) {
+              throw new Error(data?.error || "查询视频任务失败。");
+            }
 
-        setStatus(data.status);
+            return data;
+          })
+        );
 
-        if (data.status === "SUCCESS") {
-          if (!data.resultUrl) {
-            throw new Error("视频任务已成功，但 AI 服务未返回可预览地址。");
+        for (const item of results) {
+          if (item.status === "SUCCESS" && item.resultUrl && !resultUrl) {
+            setResultUrl(item.resultUrl);
           }
 
-          setResultUrl(data.resultUrl);
-          setCompletedCount((count) => count + 1);
-          setIsGenerating(false);
+          if (item.status !== "SUCCESS" && item.status !== "FAIL") {
+            pending.push(item.taskId);
+          }
         }
 
-        if (data.status === "FAIL") {
-          throw new Error(data.error || "视频生成失败。");
-        }
+        setActiveVideoTaskIds(pending);
+        setStatus(pending.length > 0 ? "RUNNING" : "SUCCESS");
+        setIsGenerating(pending.length > 0);
+        await refreshHistory();
       } catch (err) {
         setError(err instanceof Error ? err.message : "查询视频任务失败。");
         setStatus("FAIL");
@@ -71,21 +115,45 @@ export default function Home() {
     }, 3000);
 
     return () => window.clearInterval(timer);
-  }, [mode, taskId, isGenerating]);
+  }, [activeVideoTaskIds, resultUrl]);
+
+  async function refreshHistory() {
+    const response = await fetch("/api/generations", {
+      cache: "no-store"
+    });
+    const data = await response.json();
+
+    if (response.ok) {
+      setHistory(data.generations || []);
+    }
+  }
 
   function resetResult(nextMode: GenerationMode) {
     setMode(nextMode);
     setStatus("READY");
     setTaskId("");
+    setActiveVideoTaskIds([]);
     setResultUrl(null);
     setError("");
     setIsGenerating(false);
+  }
+
+  function updateCount(value: string) {
+    const parsed = Number(value);
+
+    if (!Number.isFinite(parsed)) {
+      setCount(1);
+      return;
+    }
+
+    setCount(Math.max(1, Math.min(maxCount, Math.floor(parsed))));
   }
 
   async function handleGenerate() {
     setError("");
     setResultUrl(null);
     setTaskId("");
+    setActiveVideoTaskIds([]);
     setStatus(mode === "image" ? "GENERATING" : "QUEUED");
     setIsGenerating(true);
 
@@ -98,6 +166,7 @@ export default function Home() {
           },
           body: JSON.stringify({
             prompt,
+            count,
             watermark: false
           })
         });
@@ -107,14 +176,16 @@ export default function Home() {
           throw new Error(data?.error || "生成图片失败。");
         }
 
-        if (!data.resultUrl) {
+        const firstResult = data.generations?.find((item: GenerationRecord) => item.resultUrl)?.resultUrl || data.resultUrl;
+
+        if (!firstResult) {
           throw new Error("AI 服务未返回可预览图片地址。");
         }
 
-        setResultUrl(data.resultUrl);
-        setCompletedCount((count) => count + 1);
+        setResultUrl(firstResult);
         setStatus(data.status);
         setIsGenerating(false);
+        await refreshHistory();
         return;
       }
 
@@ -125,6 +196,7 @@ export default function Home() {
         },
         body: JSON.stringify({
           prompt,
+          count,
           duration: 5,
           generateAudio: true
         })
@@ -135,17 +207,29 @@ export default function Home() {
         throw new Error(data?.error || "创建视频任务失败。");
       }
 
-      if (!data.taskId) {
+      const taskIds = Array.isArray(data.taskIds) ? data.taskIds.filter(Boolean) : data.taskId ? [data.taskId] : [];
+
+      if (taskIds.length === 0) {
         throw new Error("AI 服务未返回视频任务 ID。");
       }
 
-      setTaskId(data.taskId);
+      setTaskId(taskIds[0]);
+      setActiveVideoTaskIds(taskIds);
       setStatus(data.status);
+      await refreshHistory();
     } catch (err) {
       setError(err instanceof Error ? err.message : mode === "image" ? "生成图片失败。" : "生成视频失败。");
       setStatus("FAIL");
       setIsGenerating(false);
+      await refreshHistory();
     }
+  }
+
+  async function deleteHistory(id: string) {
+    await fetch(`/api/generations/${encodeURIComponent(id)}`, {
+      method: "DELETE"
+    });
+    await refreshHistory();
   }
 
   return (
@@ -189,6 +273,21 @@ export default function Home() {
               className="prompt-input"
             />
 
+            <div className="count-row">
+              <label className="field-label" htmlFor="count">
+                生成数量
+              </label>
+              <input
+                id="count"
+                type="number"
+                min={1}
+                max={maxCount}
+                value={count}
+                onChange={(event) => updateCount(event.target.value)}
+                disabled={isGenerating}
+              />
+            </div>
+
             <div className="preset-row">
               <span>
                 <Sparkles size={16} />
@@ -196,7 +295,7 @@ export default function Home() {
               </span>
               <span>
                 <WandSparkles size={16} />
-                {mode === "image" ? "Seedream 5.0" : "Seedance 视频"}
+                {mode === "image" ? "图片最多 10 个" : "视频最多 3 个"}
               </span>
             </div>
 
@@ -210,19 +309,17 @@ export default function Home() {
 
           <section className="stats-panel" aria-label="任务统计">
             <div>
-              <strong className="blue">{mode === "video" && status === "QUEUED" ? 1 : 0}</strong>
+              <strong className="blue">{stats.queued}</strong>
               <span>等待</span>
             </div>
             <div className="divider" />
             <div>
-              <strong className={isGenerating ? "orange" : "muted"}>
-                {isGenerating && status !== "QUEUED" ? 1 : 0}
-              </strong>
+              <strong className={stats.running > 0 ? "orange" : "muted"}>{stats.running}</strong>
               <span>进行中</span>
             </div>
             <div className="divider" />
             <div>
-              <strong className="green">{completedCount}</strong>
+              <strong className="green">{stats.completed}</strong>
               <span>已完成</span>
             </div>
           </section>
@@ -269,6 +366,49 @@ export default function Home() {
                   <p>{mode === "image" ? "正在生成高清图片..." : "正在生成视频..."}</p>
                 </div>
               ) : null}
+            </div>
+          </section>
+
+          <section className="panel history-panel">
+            <div className="preview-header">
+              <h2>历史记录</h2>
+              <button className="refresh-button" type="button" onClick={refreshHistory}>
+                刷新
+              </button>
+            </div>
+
+            <div className="history-list">
+              {history.length === 0 ? (
+                <p className="history-empty">暂无生成记录</p>
+              ) : (
+                history.map((item) => (
+                  <article key={item.id} className="history-item">
+                    <div className="history-thumb">
+                      {item.resultUrl && item.mode === "image" ? <img src={item.resultUrl} alt="" /> : null}
+                      {item.resultUrl && item.mode === "video" ? <video src={item.resultUrl} muted playsInline /> : null}
+                      {!item.resultUrl ? item.mode === "image" ? <ImageIcon size={24} /> : <Video size={24} /> : null}
+                    </div>
+                    <div className="history-meta">
+                      <div>
+                        <strong>{item.mode === "image" ? "图片" : "视频"}</strong>
+                        <span className={`status-pill ${item.status.toLowerCase()}`}>{item.status}</span>
+                      </div>
+                      <p>{item.prompt}</p>
+                      <small>{item.size || item.ratio || item.model || item.createdAt}</small>
+                    </div>
+                    <div className="history-actions">
+                      {item.resultUrl ? (
+                        <a href={item.resultUrl} target="_blank" rel="noreferrer" aria-label="打开结果">
+                          <Download size={16} />
+                        </a>
+                      ) : null}
+                      <button type="button" onClick={() => deleteHistory(item.id)} aria-label="删除历史记录">
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
+                  </article>
+                ))
+              )}
             </div>
           </section>
         </div>
