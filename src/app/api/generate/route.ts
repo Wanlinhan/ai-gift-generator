@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createArkImage } from "@/src/lib/ark";
 import { enforceCountLimit, parsePositiveCount } from "@/src/lib/count";
 import { createGeneration, updateGeneration } from "@/src/lib/database";
+import { saveRemoteMedia } from "@/src/lib/media";
 import { inferImageSizeFromPrompt } from "@/src/lib/prompt";
 
 export const runtime = "nodejs";
@@ -40,10 +41,13 @@ export async function POST(request: Request) {
           size,
           watermark: body?.watermark === true
         });
+        const savedMedia = result.resultUrl ? await saveRemoteMedia(result.resultUrl, "image") : null;
         generations.push(
           updateGeneration(generation.id, {
             status: "SUCCESS",
-            resultUrl: result.resultUrl,
+            resultUrl: savedMedia?.publicUrl || result.resultUrl,
+            remoteUrl: result.resultUrl,
+            localPath: savedMedia?.absolutePath,
             size: result.size,
             model: result.model
           })

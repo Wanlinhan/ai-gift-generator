@@ -12,6 +12,8 @@ export type GenerationRecord = {
   prompt: string;
   status: StoredGenerationStatus;
   resultUrl: string | null;
+  remoteUrl: string | null;
+  localPath: string | null;
   providerTaskId: string | null;
   error: string | null;
   size: string | null;
@@ -71,6 +73,8 @@ export function ensureDatabase() {
       prompt TEXT NOT NULL,
       status TEXT NOT NULL,
       result_url TEXT,
+      remote_url TEXT,
+      local_path TEXT,
       provider_task_id TEXT,
       error TEXT,
       size TEXT,
@@ -82,7 +86,17 @@ export function ensureDatabase() {
     CREATE INDEX IF NOT EXISTS generations_created_at_idx ON generations(created_at);
     CREATE INDEX IF NOT EXISTS generations_provider_task_id_idx ON generations(provider_task_id);
   `);
+  addColumnIfMissing("generations", "remote_url", "TEXT");
+  addColumnIfMissing("generations", "local_path", "TEXT");
   initialized = true;
+}
+
+function addColumnIfMissing(tableName: string, columnName: string, columnType: string) {
+  const rows = getDatabase().prepare(`PRAGMA table_info(${tableName})`).all() as Array<{ name: string }>;
+
+  if (!rows.some((row) => row.name === columnName)) {
+    getDatabase().exec(`ALTER TABLE ${tableName} ADD COLUMN ${columnName} ${columnType}`);
+  }
 }
 
 function mapGeneration(row: any): GenerationRecord {
@@ -92,6 +106,8 @@ function mapGeneration(row: any): GenerationRecord {
     prompt: row.prompt,
     status: row.status,
     resultUrl: row.result_url,
+    remoteUrl: row.remote_url,
+    localPath: row.local_path,
     providerTaskId: row.provider_task_id,
     error: row.error,
     size: row.size,
@@ -107,6 +123,8 @@ export function createGeneration(input: {
   prompt: string;
   status: StoredGenerationStatus;
   resultUrl?: string | null;
+  remoteUrl?: string | null;
+  localPath?: string | null;
   providerTaskId?: string | null;
   error?: string | null;
   size?: string | null;
@@ -119,8 +137,8 @@ export function createGeneration(input: {
   getDatabase()
     .prepare(
       `INSERT INTO generations (
-        id, mode, prompt, status, result_url, provider_task_id, error, size, ratio, model
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+        id, mode, prompt, status, result_url, remote_url, local_path, provider_task_id, error, size, ratio, model
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
     )
     .run(
       id,
@@ -128,6 +146,8 @@ export function createGeneration(input: {
       input.prompt,
       input.status,
       input.resultUrl ?? null,
+      input.remoteUrl ?? null,
+      input.localPath ?? null,
       input.providerTaskId ?? null,
       input.error ?? null,
       input.size ?? null,
@@ -158,6 +178,7 @@ export function listGenerations(limit = 80) {
 export function updateGeneration(
   id: string,
   input: Partial<Pick<GenerationRecord, "status" | "resultUrl" | "providerTaskId" | "error" | "size" | "ratio" | "model">>
+    & Partial<Pick<GenerationRecord, "remoteUrl" | "localPath">>
 ) {
   ensureDatabase();
 
@@ -170,12 +191,14 @@ export function updateGeneration(
   getDatabase()
     .prepare(
       `UPDATE generations
-       SET status = ?, result_url = ?, provider_task_id = ?, error = ?, size = ?, ratio = ?, model = ?, updated_at = CURRENT_TIMESTAMP
+       SET status = ?, result_url = ?, remote_url = ?, local_path = ?, provider_task_id = ?, error = ?, size = ?, ratio = ?, model = ?, updated_at = CURRENT_TIMESTAMP
        WHERE id = ?`
     )
     .run(
       input.status ?? existing.status,
       input.resultUrl ?? existing.resultUrl,
+      input.remoteUrl ?? existing.remoteUrl,
+      input.localPath ?? existing.localPath,
       input.providerTaskId ?? existing.providerTaskId,
       input.error ?? existing.error,
       input.size ?? existing.size,
@@ -190,6 +213,7 @@ export function updateGeneration(
 export function updateGenerationByTaskId(
   providerTaskId: string,
   input: Partial<Pick<GenerationRecord, "status" | "resultUrl" | "error" | "ratio" | "model">>
+    & Partial<Pick<GenerationRecord, "remoteUrl" | "localPath">>
 ) {
   ensureDatabase();
 
